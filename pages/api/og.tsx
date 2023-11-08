@@ -8,7 +8,7 @@ export const config = {
 export default async function handler(request: NextRequest) {
     try {
         const fontData = await fetch(
-            new URL('../../public/SmileySans.ttf', import.meta.url),
+            new URL('../../public/NotoSerifCJKsc-Regular.ttf', import.meta.url),
         ).then((res) => res.arrayBuffer());
 
         const { searchParams } = new URL(request.url);
@@ -115,7 +115,7 @@ export default async function handler(request: NextRequest) {
                 height: 630,
                 fonts: [
                     {
-                        name: 'SmileySans',
+                        name: 'Noto Serif',
                         data: fontData,
                         style: 'normal',
                     },
