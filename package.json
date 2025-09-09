@@ -1,12 +1,15 @@
 {
   "name": "og",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "node scripts/fetch-titles.js && node scripts/optimize-font.js && next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "fetch-titles": "node scripts/fetch-titles.js",
+    "optimize-font": "node scripts/optimize-font.js",
+    "generate-bg": "node scripts/generate-bg-base64.js"
   },
   "dependencies": {
     "@types/node": "22.16.4",
@@ -19,5 +22,9 @@
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "typescript": "5.8.3"
+  },
+  "devDependencies": {
+    "dotenv": "^17.2.2",
+    "fontmin": "^1.1.1"
   }
 }

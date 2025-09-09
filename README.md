@@ -1,91 +1,82 @@
-This is a [Next.js](https://nextjs.org/) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# Open Graph 图像生成服务
 
-## Usage
+这是一个基于 Next.js 构建的 Open Graph（OG）图像生成服务，用于动态生成带有标题的图片卡片，常用于社交媒体分享时的预览图。
 
-输入`title` 标题即可，其他参数固化了。
+## 使用方法
 
-> CORS 仅  eallion.com 可引用。
+输入 `title` 标题参数即可，其他参数已固化。
+
+> CORS 限制：仅 eallion.com 可引用。
 
 ```url
-https://api.eallion.com/og?title=
+https://api.eallion.com/og?title=你的标题
 ```
 
-## Font Spider 压缩字体文件
+## 自动字体优化
 
-- https://github.com/eallion/font-spider-smiley-opengraph
+本项目支持使用 Fontmin 自动优化字体文件，只保留文章标题中实际使用的字符，大大减小字体文件大小。
 
-```bash
-mkdir font-spider && cd font-spider
-# 安装 Font Spider
-npm install font-spider -g
+### 本地开发
 
-# 生成 import.html 模板内容
-vim import.html
+1. 在 `.env.local` 文件中设置 Directus API token：
 
-# 从 Summary.json 文件中提取 Title 放入到 index.html 中
-cat summary.json | jq -r '.summaries[] | "<h1>\(.title)</h1>"' | sed -e '/<body>/r /dev/stdin' import.html > index.html
-
-# 生成 Title 用到的字体
-font-spider index.html --no-backup --debug
+```env
+DIRECTUS_TOKEN=your_directus_api_token_here
 ```
 
-`SmileySans.ttf` 字体文件放到当前目录，把生成后的字体复制到本项目 `Public` 中。  
-`import.html` 内容：
-
-```html
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
-    <style>
-        @font-face {
-            font-family: 'SmileySans';
-            src: url('SmileySans.ttf') format('truetype');
-            font-weight: normal;
-            font-style: normal;
-        }
-        h1,
-        p {
-            font-family: 'SmileySans',sans-serif;
-        }
-    </style>
-</head>
-<body>
-</body>
-</html>
-```
-
-## Getting Started
-
-First, run the development server:
+2. 运行开发服务器：
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 生产构建
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+在生产构建过程中，系统会自动执行以下步骤：
 
-This project uses [`next/font`](https://nextjs.org/docs/basic-features/font-optimization) to automatically optimize and load Inter, a custom Google Font.
+```bash
+npm run build
+```
 
-## Learn More
+该命令会依次执行：
 
-To learn more about Next.js, take a look at the following resources:
+1. 从 Directus API 获取文章标题数据
+2. 使用 Fontmin 精简字体文件
+3. 生成背景图片的 base64 数据
+4. 构建 Next.js 应用
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### 手动运行字体优化
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js/) - your feedback and contributions are welcome!
+您也可以手动运行字体优化脚本：
 
-## Deploy on Vercel
+```bash
+npm run fetch-titles  # 从 Directus API 获取文章标题数据
+npm run optimize-font # 使用 Fontmin 精简字体文件
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+如果遇到 API 权限问题，可以使用测试模式：
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/deployment) for more details.
+```bash
+USE_TEST_MODE=true npm run optimize-font
+```
+
+### 环境变量配置
+
+项目支持从多个来源加载环境变量：
+
+- `.env.local`（优先级最高）
+- `.env`
+- Vercel 环境变量
+- Cloudflare 环境变量
+
+## 部署
+
+### Vercel 部署
+
+1. 在 Vercel 项目设置中添加 `DIRECTUS_TOKEN` 环境变量
+2. 推送代码到 GitHub，Vercel 会自动部署
+
+### Cloudflare Pages 部署
+
+1. 在 Cloudflare Pages 项目设置中添加 `DIRECTUS_TOKEN` 环境变量
+2. 推送代码到 GitHub，Cloudflare Pages 会自动部署
