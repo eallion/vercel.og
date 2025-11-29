@@ -26,19 +26,18 @@ function loadEnv() {
 // 加载环境变量
 loadEnv();
 
-// 获取环境变量中的 token
+// 获取环境变量中的 token 和 url
 const DIRECTUS_TOKEN = process.env.DIRECTUS_TOKEN;
-
-// Directus API 配置
-const BASE_DIRECTUS_API_URL = 'https://admin.eallion.com/items/Article?fields=title';
+const DIRECTUS_URL = (process.env.DIRECTUS_URL || '').replace(/\/$/, '');
 
 // 输出文件路径
 const TITLES_OUTPUT_PATH = path.join(__dirname, '../src/titles.json');
 
 /**
- * 从 Directus API 获取所有文章标题数据（支持分页）
+ * 通用获取标题函数
+ * @param {string} collection - 集合名称 (Article 或 Page)
  */
-async function fetchAllArticleTitles() {
+async function fetchTitlesFromCollection(collection) {
   // 检查 token 是否存在
   if (!DIRECTUS_TOKEN) {
     return Promise.reject(new Error('DIRECTUS_TOKEN is not set. Please check your .env.local file or environment variables.'));
@@ -49,13 +48,17 @@ async function fetchAllArticleTitles() {
   const limit = 100; // 每页获取 100 条数据
   let hasMore = true;
   
+  const baseUrl = `${DIRECTUS_URL}/items/${collection}?fields=title`;
+
+  console.log(`Starting to fetch titles from collection: ${collection}`);
+
   while (hasMore) {
-    const DIRECTUS_API_URL = `${BASE_DIRECTUS_API_URL}&limit=${limit}&offset=${offset}`;
-    console.log(`Fetching data from: ${DIRECTUS_API_URL}`);
-    console.log(`Using token: ${DIRECTUS_TOKEN.substring(0, 10)}...`); // 只显示前 10 个字符以保护隐私
+    const apiUrl = `${baseUrl}&limit=${limit}&offset=${offset}`;
+    console.log(`Fetching data from: ${apiUrl}`);
+    // console.log(`Using token: ${DIRECTUS_TOKEN.substring(0, 10)}...`); // 只显示前 10 个字符以保护隐私
     
     try {
-      const titles = await fetchPageTitles(DIRECTUS_API_URL);
+      const titles = await fetchPageTitles(apiUrl);
       allTitles = allTitles.concat(titles);
       
       // 如果返回的数据少于 limit，说明已经到最后一页
@@ -65,9 +68,9 @@ async function fetchAllArticleTitles() {
         offset += limit;
       }
       
-      console.log(`Fetched ${titles.length} articles in this page. Total: ${allTitles.length}`);
+      console.log(`Fetched ${titles.length} items from ${collection} in this page. Total for ${collection}: ${allTitles.length}`);
     } catch (error) {
-      console.error(`Error fetching data at offset ${offset}:`, error);
+      console.error(`Error fetching data from ${collection} at offset ${offset}:`, error);
       throw error;
     }
   }
@@ -88,7 +91,7 @@ function fetchPageTitles(url) {
     };
 
     https.get(url, options, (res) => {
-      console.log(`API Status Code: ${res.statusCode}`);
+      // console.log(`API Status Code: ${res.statusCode}`);
       
       // 确保响应使用 UTF-8 编码
       res.setEncoding('utf8');
@@ -110,19 +113,20 @@ function fetchPageTitles(url) {
           }
           
           // 处理不同的响应结构
-          let articles = [];
+          let items = [];
           if (jsonData.data && Array.isArray(jsonData.data)) {
             // 标准 Directus 响应格式
-            articles = jsonData.data;
+            items = jsonData.data;
           } else if (Array.isArray(jsonData)) {
             // 直接返回数组的格式
-            articles = jsonData;
+            items = jsonData;
           } else {
-            reject(new Error(`Unexpected API response structure: ${JSON.stringify(Object.keys(jsonData))}`));
-            return;
+            // 某些情况下可能返回空或者其他结构，视为空数组处理或报错
+             console.warn(`Unexpected API response structure keys: ${JSON.stringify(Object.keys(jsonData))}`);
+             items = [];
           }
           
-          resolve(articles);
+          resolve(items);
         } catch (error) {
           console.error('Response data:', data);
           reject(error);
@@ -139,8 +143,19 @@ function fetchPageTitles(url) {
  */
 async function main() {
   try {
-    console.log('正在从 Directus API 获取所有文章标题...');
-    const articles = await fetchAllArticleTitles();
+    console.log(`Using Directus URL: ${DIRECTUS_URL}`);
+
+    // 并行获取 Article 和 Page 的标题
+    const [articleTitles, pageTitles] = await Promise.all([
+      fetchTitlesFromCollection('Article'),
+      fetchTitlesFromCollection('Page')
+    ]);
+
+    console.log(`Fetched ${articleTitles.length} articles.`);
+    console.log(`Fetched ${pageTitles.length} pages.`);
+
+    // 合并结果
+    const allFetchedTitles = articleTitles.concat(pageTitles);
     
     // 定义需要额外添加的 4 个特定 title
     const additionalTitles = [
@@ -152,7 +167,7 @@ async function main() {
     ];
     
     // 将额外的 title 添加到文章数组中
-    const combinedArticles = articles.concat(additionalTitles);
+    const combinedArticles = allFetchedTitles.concat(additionalTitles);
     
     // 保存到文件，明确指定 UTF-8 编码
     const outputData = {
@@ -162,7 +177,7 @@ async function main() {
     };
     
     fs.writeFileSync(TITLES_OUTPUT_PATH, JSON.stringify(outputData, null, 2), 'utf8');
-    console.log(`成功保存 ${combinedArticles.length} 个文章标题到 ${TITLES_OUTPUT_PATH}`);
+    console.log(`成功保存 ${combinedArticles.length} 个标题 (Articles: ${articleTitles.length}, Pages: ${pageTitles.length}, Additional: ${additionalTitles.length}) 到 ${TITLES_OUTPUT_PATH}`);
   } catch (error) {
     console.error('处理过程中出现错误：', error);
     process.exit(1);
